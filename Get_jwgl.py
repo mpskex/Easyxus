@@ -4,11 +4,10 @@ import urllib
 import requests
 import pytesseract 
 from bs4 import BeautifulSoup
-##mpsk:北京工业大学
+##mpsk
 ##访问教务管理系统并格式化获取消息
 s = requests.session()
 
-viewstate = 'dDwyODE2NTM0OTg7Oz59ca9xYUSOmxpdVOe+y/beTvvgZg=='
 Usernum = str(15143103)
 Username = ''
 Password = ''
@@ -40,6 +39,11 @@ class MyGaussianBlur(ImageFilter.Filter):
         else:
             return image.gaussian_blur(self.radius)
 
+def get_VIEWSTATE(url):
+    a = requests.get(url)
+    soup = BeautifulSoup(a.content, "lxml")
+    _VIEWSTATE = soup.find("input")
+    return _VIEWSTATE["value"]
 
 def ocr():
     threshold = 115
@@ -60,7 +64,7 @@ def ocr():
     'S':'8'  
     }
     '''
-    ## 使用pytesseract对验证码进行解码
+    ##使用pytesseract对验证码进行解码
     ##打开图像
     #imageobj = img
     imageobj = Image.open('code.gif')
@@ -82,7 +86,7 @@ def ocr():
     for n in list(outcode):
         if (n.isdigit() or n.isalpha()): txtSecretCode.append(n)
     codetext = ''.join(txtSecretCode)
-    #识别对吗    
+    #识别对吗     
     codetext = codetext.strip()    
     codetext = codetext.upper();      
     for r in rep:    
@@ -91,6 +95,7 @@ def ocr():
     return codetext
 
 def login():
+    viewstate = get_VIEWSTATE('http://gdjwgl.bjut.edu.cn/')
     while(1):
         ##下载验证码
         main = s.get('http://gdjwgl.bjut.edu.cn/')
@@ -139,7 +144,7 @@ def login():
             return req.cookies
 
 
-def main():
+if __name__ == '__main__':
     cookie = login()
     header = {'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
             'Accept-Encoding':'gzip, deflate,sdch',
@@ -150,7 +155,8 @@ def main():
             'Referer':'http://gdjwgl.bjut.edu.cn/xs_main.aspx?xh=15143103',
             'Upgrade-Insecure-Requests':'1',
             'User-Agent':'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36'}
-    print "成功登陆！"
+    print "成功登陆"
+
     info = s.get('http://gdjwgl.bjut.edu.cn/xsgrxx.aspx?xh=' + Usernum + '&xm=' + urllib.quote(Username) + '&gnmkdm=N121501',headers = header)
     with open("self_info.html", 'wb') as f:
         f.write(info.content)
@@ -163,7 +169,41 @@ def main():
     with open("class_table.html", 'wb') as f:
         f.write(class_table.content)
     f.close
-    
+    #   请求成绩
+    temp = s.get('http://gdjwgl.bjut.edu.cn/xscjcx.aspx?xh=' + Usernum + '&xm=' + urllib.quote(Username) + '&gnmkdm=N121605', headers = header)
+    soup = BeautifulSoup(temp.content, "lxml")
+    li = soup.find_all("input")
+    _VIEWSTATE = ""
+    for i in li:
+        if i["name"] == '__VIEWSTATE':
+            _VIEWSTATE = i["value"]
+    req_data = {'__EVENTTARGET': '',
+            '__EVENTARGUMENT': '',
+            '__VIEWSTATE': _VIEWSTATE,
+            'hidLanguage': '',
+            'ddlXN': '',
+            'ddlXQ':'',
+            'ddl_kcxz': '',
+            'btn_zg': '课程最高成绩'}
+    header['Referer'] = 'http://gdjwgl.bjut.edu.cn/xscjcx.aspx?xh=' + Usernum + '&xm=' + urllib.quote(Username) + '&gnmkdm=N121605'
+    marks = s.post('http://gdjwgl.bjut.edu.cn/xscjcx.aspx?xh=' + Usernum + '&xm=' + urllib.quote(Username) + '&gnmkdm=N121605', headers = header, data = req_data)
+    with open("marks.html", 'wb') as f:
+        f.write(marks.content)
+    f.close
+    soup = BeautifulSoup(marks.content, "lxml")
+    temp = soup.find("table", class_='datelist')
+    #   学分统计
+    mark = 0
+    #   加权统计
+    grade = 0
+    for idx, tr in enumerate(temp.find_all('tr')):
+        if idx != 0:
+            k = tr.find_all("td")
+            if k[0] != "课程代码" and k[0].contents[0].decode('utf-8') != '0007077':
+                print k[0].contents[0]
+                print
+                #   do the table calcu
+                mark += float(k[3].contents[0].decode("utf-8"))
+                grade += int(k[4].contents[0].decode("utf-8")) * float(k[3].contents[0].decode("utf-8"))
+    print float(grade)/mark
 
-if __name__ == '__main__':
-    main()
