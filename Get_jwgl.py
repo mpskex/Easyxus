@@ -155,7 +155,7 @@ if __name__ == '__main__':
             'Referer':'http://gdjwgl.bjut.edu.cn/xs_main.aspx?xh=15143103',
             'Upgrade-Insecure-Requests':'1',
             'User-Agent':'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36'}
-    print "成功登陆"
+    print "Login Success!"
 
     info = s.get('http://gdjwgl.bjut.edu.cn/xsgrxx.aspx?xh=' + Usernum + '&xm=' + urllib.quote(Username) + '&gnmkdm=N121501',headers = header)
     with open("self_info.html", 'wb') as f:
@@ -193,17 +193,34 @@ if __name__ == '__main__':
     soup = BeautifulSoup(marks.content, "lxml")
     temp = soup.find("table", class_='datelist')
     #   学分统计
-    mark = 0
+    mark_sum = 0
     #   加权统计
-    grade = 0
+    grade_sum = 0
+    #   gpa统计
+    gpa_sum = 0.0
+
     for idx, tr in enumerate(temp.find_all('tr')):
         if idx != 0:
             k = tr.find_all("td")
-            if k[0] != "课程代码" and k[0].contents[0].decode('utf-8') != '0007077':
+            if k[0] != "课程代码" and k[0].contents[0].decode('utf-8') != '0007077' and k[0].contents[0].decode('utf-8') != '0007028':
                 print k[0].contents[0]
                 print
                 #   do the table calcu
-                mark += float(k[3].contents[0].decode("utf-8"))
-                grade += int(k[4].contents[0].decode("utf-8")) * float(k[3].contents[0].decode("utf-8"))
-    print float(grade)/mark
+                mark = float(k[3].contents[0].decode("utf-8"))
+                score = int(k[4].contents[0].decode("utf-8"))
+                gpa = 0.0
+                if score >= 85:
+                    gpa = 4.0
+                elif score < 85 and score >= 70:
+                    gpa = 3.0
+                elif score < 70 and score >= 60:
+                    gpa = 2.0
+                else:
+                    gpa = 0.0
+                gpa_sum += gpa * mark
+                grade_sum += score * mark
+                mark_sum += mark
+    print "grade is :\t%.2f"%(float(grade_sum)/mark_sum)
+    print "mark sum is :\t%.2f"%(mark_sum)
+    print "Weighted GPA is :\t%.2f"%(float(gpa_sum)/mark_sum)
 
